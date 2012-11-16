@@ -4,6 +4,7 @@ import configpaths
 import ConfigParser
 import getpass
 import sys
+import optparse
 
 try:
 	import requests
@@ -25,7 +26,7 @@ class Gist(object):
 	Methods for working with GitHub Gists
 	"""
 	OAUTH_CONFIG_FILENAME = configpaths.get_config_path('python-gist','oauth.cfg')
-  
+	
 	def choose_authmethod(self):
 		choice = None
 		try:
@@ -73,7 +74,7 @@ class Gist(object):
 			sys.exit(1)
 
 		else:
-			 print "Loaded saved access token, I'm good to go." 
+			print "Loaded saved access token, I'm good to go." 
 	
 	def authorise_web(self):
 		"""
@@ -122,10 +123,10 @@ class Gist(object):
 		else:
 			raise("Either content or gist_files must be set")
 		payload = {
-					"description": description,
-					"public": public,
-					"files": files,
-				   }
+			"description": description,
+			"public": public,
+			"files": files,
+			}
 		response = self.auth.get_session(self.client_token).post("https://api.github.com/gists", data=json.dumps(payload))
 		if response.ok:
 			return response.json['html_url']
@@ -159,6 +160,19 @@ if __name__ == "__main__":
 		return None
 	ConfigParser.RawConfigParser.get_quiet = get_quiet
 	
-gist = Gist()
-if (sys.stdin):
-	print gist.post_gist(content=sys.stdin.readlines())
+
+
+# setup options
+parser = optparse.OptionParser()
+parser.add_option('-f', '--type', help='File to post as a Gist', dest='file')
+#parse
+(opts, args) = parser.parse_args()
+if opts.__dict__['file']:
+	gist = Gist()
+	fname=opts.__dict__['file']
+	with open(fname) as f:		
+		print gist.post_gist(content=f.read())
+else:
+	gist = Gist()
+	if (sys.stdin):
+		print gist.post_gist(content=sys.stdin.readlines())
