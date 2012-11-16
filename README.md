@@ -25,6 +25,7 @@ Todo
 * *Done* - config handling
     * Config seems to be appending at odd times
 	
-* Command line arguments
+* Command line arguments allowing specification of existing files
 * Logging?
 * Documentation
+* setup.py script to enable installing for system-wide access
