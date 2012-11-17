@@ -6,6 +6,7 @@ import getpass
 import sys
 import optparse
 
+
 try:
 	import requests
 except ImportError:
@@ -30,7 +31,7 @@ class Gist(object):
 	def choose_authmethod(self):
 		choice = None
 		try:
-			choice = raw_input('Please select an authorisation method.\r\n \t1. Open a web browser, cut and paste the access token.\r\n \t2. Use your GitHub username and password to get a token automagically.\r\n \t(Default is 2): ')
+			choice = raw_input('Please select an authorisation method.\r\n \t 1. Open a web browser, cut and paste the access token.\r\n \t2. Use your GitHub username and password to get a token automagically.\r\n \t(Default is 2): ')
 		except EOFError:
 			pass
 
@@ -59,17 +60,16 @@ class Gist(object):
 
 		self.client_token = self.config.get_quiet('Credentials', 'client_token')
 		self.client_id = self.config.get_quiet('Credentials', 'client_id')
-		if self.client_id is None:
-			self.client_id = "6aa08c7fa4d67e09a26f" #todo, don't do this.
 		self.client_secret = self.config.get_quiet('Credentials', 'client_secret')
-		self.redir_url = "http://voltagex.github.com/python-gist/oauth.html"
 
-		self.auth = GitHubAuth(app_name="python-gist", app_url="http://github.com/voltagex/python-gist", client_id=self.client_id, client_secret=self.client_secret)
+		self.auth = GitHubAuth(app_name="python-gist", app_url="http://github.com/amitsaha/python-gist", \
+					       client_id=self.client_id, client_secret=self.client_secret)
 
 		if (self.client_token is None or self.client_id is None) and sys.stdin.isatty():
 			self.choose_authmethod()
 
 		elif not sys.stdin.isatty() and self.client_id is None:
+			# In case a pipe is trying to write to us
 			print "Sorry, can't accept anything on stdin until I have some GitHub credentials to work with"
 			sys.exit(1)
 
@@ -99,7 +99,7 @@ class Gist(object):
 			print
 			self.choose_authmethod()
 
-	def post_gist(self, description="Posted by python-gist", public=False, gist_files=None, content=None):
+	def post_gist(self, description, public, gist_files, content):
 		"""
 		Post a gist, either single text string or a dictionary of files in the form of
 		{"filename.ext": {"content": "some text"}}
@@ -117,7 +117,7 @@ class Gist(object):
 		:type: str.
 		"""
 		if content is not None:
-			files = {"python-gist-post.txt": {"content": content}}
+			files = {"gist.txt": {"content": content}}
 		elif gist_files is not None: 
 			files = gist_files 
 		else:
@@ -127,7 +127,8 @@ class Gist(object):
 			"public": public,
 			"files": files,
 			}
-		response = self.auth.get_session(self.client_token).post("https://api.github.com/gists", data=json.dumps(payload))
+		response = self.auth.get_session(self.client_token). \
+		    post("https://api.github.com/gists", data=json.dumps(payload))
 		if response.ok:
 			return response.json['html_url']
 		else: 
@@ -146,10 +147,8 @@ class Gist(object):
 				self.config.set('Credentials', 'Client_ID', self.client_id)
 			if (self.client_secret):
 				self.config.set('Credentials', 'Client_Secret', self.client_secret)
-
 		
-			self.config.write(self.config.filehandle)
-			
+			self.config.write(self.config.filehandle)			
 			self.config.filehandle.flush()
 			self.config.filehandle.close()
 		
@@ -164,15 +163,43 @@ if __name__ == "__main__":
 
 # setup options
 parser = optparse.OptionParser()
-parser.add_option('-f', '--type', help='File to post as a Gist', dest='file')
+parser.add_option('-d', '--description',help='Description for the gist',dest='desc')
+parser.add_option('-f', '--files', help='Comma seperated list of file(s) to post as a gist', dest='files')
+parser.add_option('-p', '--private',help='Use to post a private gist', action='store_true',dest='private')
+
+
 #parse
 (opts, args) = parser.parse_args()
-if opts.__dict__['file']:
-	gist = Gist()
-	fname=opts.__dict__['file']
-	with open(fname) as f:		
-		print gist.post_gist(content=f.read())
+
+#check for authentication
+gist=Gist()
+
+#check the options
+if opts.__dict__['desc'] is not None:
+	description=opts.__dict__['desc']
 else:
-	gist = Gist()
-	if (sys.stdin):
-		print gist.post_gist(content=sys.stdin.readlines())
+	description = 'A Gist'
+
+if opts.__dict__['private'] is not None:
+	public = False
+else:
+	public = True
+
+gist_files=None
+if opts.__dict__['files']:
+	content=None
+	gist_files={}
+	for fname in opts.__dict__['files'].split(','):
+		with open(fname) as f:
+			gist_files[fname]={'content':f.read()}
+
+	print 'Uploading files..'
+
+else:
+	print 'Enter your Gist contents'
+	print '***********************'
+	print '****^D  when done******'
+	content=sys.stdin.readlines()
+
+# Upload gist
+print gist.post_gist(description, public, gist_files, content)
